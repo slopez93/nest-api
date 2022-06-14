@@ -1,0 +1,101 @@
+service: challenge-backend-gm
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  region: eu-west-1
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+      Resource:
+        - Fn::GetAtt: [AccountTable, Arn]
+
+plugins:
+  - serverless-dynamodb-local
+  - serverless-offline
+
+custom:
+  constants:
+    ACCOUNT_TABLE: account-table
+  dynamodb:
+    start:
+      port: "8000"
+      host: dynamodb-local
+      docker: true
+      noStart: true
+      migrate: true
+    stages:
+      - dev
+      - prod
+
+package:
+  exclude:
+    - .git/**
+    - src/**
+    - test/**
+    - e2e/**
+    - nodemon.json
+    - README.md
+
+functions:
+  index:
+    handler: dist/src/apps/api/serverlessApp.handler
+    environment:
+      ACCOUNT_TABLE: ${self:custom.constants.ACCOUNT_TABLE}
+    events:
+    - http:
+        cors: true
+        path: '/'
+        method: any
+    - http:
+        cors: true
+        path: '{proxy+}'
+        method: any
+
+resources:
+  Resources:
+    AccountTable:
+      Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      Properties:
+        TableName: ${self:custom.constants.ACCOUNT_TABLE}
+        AttributeDefinitions:
+          - AttributeName: pk
+            AttributeType: S
+          - AttributeName: sk
+            AttributeType: S
+          - AttributeName: gs1pk
+            AttributeType: S
+          - AttributeName: gs1sk
+            AttributeType: S
+          - AttributeName: createdAt
+            AttributeType: S
+        KeySchema:
+          - AttributeName: pk
+            KeyType: HASH
+          - AttributeName: sk
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: gs1
+            KeySchema:
+              - AttributeName: gs1pk
+                KeyType: HASH
+              - AttributeName: gs1sk
+                KeyType: RANGE
+            Projection:
+              ProjectionType: 'ALL'
+          - IndexName: createdAt
+            KeySchema:
+              - AttributeName: createdAt
+                KeyType: HASH
+            Projection:
+              ProjectionType: 'ALL'
+        BillingMode: PAY_PER_REQUEST
+        SSESpecification:
+          SSEEnabled: true
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true

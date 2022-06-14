@@ -1,0 +1,23 @@
+version: '3.7'
+
+services:
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    container_name: dynamodb-local
+    ports:
+      - 8000:8000
+    working_dir: /home/dynamodblocal
+    command: '-jar DynamoDBLocal.jar -sharedDb -dbPath .'
+  
+  api:
+    image: nest-api
+    container_name: nest-api
+    environment:
+      - AWS_ACCESS_KEY_ID=xxx
+      - AWS_SECRET_ACCESS_KEY=xxx
+      - NODE_ENV=prod
+    build:
+      context: .
+    ports:
+      - '5000:5000'
+    restart: always
